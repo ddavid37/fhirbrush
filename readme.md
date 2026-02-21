@@ -1,5 +1,7 @@
 # FHIRBrush
 
+![FHIRBrush v1 — React Flow canvas with FHIR nodes](version1.png)
+
 ## Phase 1: Rapid Alignment (12:08 → 12:45) — *Together, 37 minutes*
 
 You've already done a lot of the conceptual alignment in this conversation, so this phase is short. The one thing you genuinely need Meera for right now, before you touch code, is to lock in the clinical scenario and get the exact LOINC codes from her. Ask her specifically: what 4-5 lab values tell the most dramatic story for a diabetic kidney disease patient? She should give you the LOINC codes (creatinine is `2160-0`, potassium is `2823-3` — she'll know the rest), the normal ranges, and the threshold values where Claude should "react" visually. Write these down. They go directly into the system prompt and the simulation script.
@@ -63,3 +65,9 @@ Full demo run-through once. Fix only things that are broken enough to kill the d
 ## The Triage Rule
 
 If you hit 3:30 and Claude integration is still broken, hardcode a beautiful, realistic Claude response and move on. A visually stunning canvas with a scripted response is a better demo than a technically correct but ugly live pipeline. You can be transparent about this in the submission write-up — judges respect honest scoping.
+
+
+
+# Version 1
+
+![FHIRBrush v1 — React Flow canvas with FHIR nodes](version1.png)

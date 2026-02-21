@@ -18,16 +18,20 @@ FHIRBrush is a living clinical canvas that pulls real patient data from a FHIR R
 
 | Field | Value |
 |-------|-------|
-| FHIR Server | `https://hapi.fhir.org/baseR4` |
-| Patient ID | *(fill in after running `find_rich_patient.py`)* |
-| Key conditions | Diabetes Mellitus Type 2, Chronic Kidney Disease |
+| Data source | `synthetic_patients.json` (locally generated, FHIR R4) |
+| Patient ID | `synth-001` |
+| Patient name | James Morrison, M, DOB 1958-03-14 |
+| Key conditions | Type 2 Diabetes (E11.9), CKD Stage 3 (N18.3), Hypertension (I10), Hyperlipidemia, Diabetic Neuropathy |
+| Observations | 88 (creatinine, potassium, eGFR, HbA1c, BUN series + vitals) |
+| Medications | 7 active (Metformin, Lisinopril, Atorvastatin, Insulin glargine, Furosemide, Amlodipine, Sevelamer) |
+| Encounters | 10 (nephrology + primary care + ED visits) |
+| Score | 203 (highest of 20 synthetic patients) |
 
-To find a good patient:
+Generated with:
 ```bash
-pip install -r requirements.txt
-python find_rich_patient.py
+python generate_patients.py
 ```
-Pick the patient with the highest score (Observations + Conditions weighted). Add the ID above.
+All 20 patients live in `synthetic_patients.json`. The backend will read from this file.
 
 ---
 
