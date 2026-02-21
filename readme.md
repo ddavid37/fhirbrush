@@ -1,8 +1,4 @@
-# FHIRBrush — Replanned from 12:08 PM
-
-You have **5 hours and 52 minutes** until the 6 PM submission deadline. That's actually enough time if you're ruthless about scope. Here's the honest replanned roadmap.
-
----
+# FHIRBrush
 
 ## Phase 1: Rapid Alignment (12:08 → 12:45) — *Together, 37 minutes*
 
