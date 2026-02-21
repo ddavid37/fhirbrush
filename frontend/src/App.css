@@ -1,0 +1,41 @@
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #333;
+  background: #1a1a1a;
+  color: #eee;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.backend-status {
+  font-size: 0.875rem;
+}
+
+.backend-status.connected {
+  color: #4ade80;
+}
+
+.backend-status.disconnected {
+  color: #f87171;
+}
+
+.backend-status.checking {
+  color: #fbbf24;
+}
+
+.flow-container {
+  flex: 1;
+  min-height: 0;
+}

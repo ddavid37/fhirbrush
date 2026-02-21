@@ -10,6 +10,24 @@ You've already done a lot of the conceptual alignment in this conversation, so t
 
 While she's doing that, you spend this phase spinning up the repo, initializing the React app with React Flow, and setting up your FastAPI or Express backend. By 12:45 you should have a repo with a running frontend and backend that talk to each other, even if they do nothing interesting yet.
 
+### Run Phase 1 (your part)
+
+**Backend (FastAPI)** — in one terminal:
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+**Frontend (React + React Flow)** — in another terminal:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:5173. The header should show **Backend: connected** when the API is reachable. You’ll see a minimal React Flow canvas (two placeholder nodes). That’s the Phase 1 target.
+
 ---
 
 ## Phase 2: Data Pipeline (12:45 → 2:15) — *Parallel, 90 minutes*
@@ -49,5 +67,3 @@ Full demo run-through once. Fix only things that are broken enough to kill the d
 ## The Triage Rule
 
 If you hit 3:30 and Claude integration is still broken, hardcode a beautiful, realistic Claude response and move on. A visually stunning canvas with a scripted response is a better demo than a technically correct but ugly live pipeline. You can be transparent about this in the submission write-up — judges respect honest scoping.
-
-Want me to write the Phase 2 starter code right now so you can copy-paste and go?
