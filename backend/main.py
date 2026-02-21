@@ -84,6 +84,88 @@ def _make_sim_observation(patient_id: str) -> dict:
     }
 
 
+# ── severity scoring ─────────────────────────────────────────────────────────
+
+# Thresholds match brief.md / fhirToNodes.ts
+_THRESHOLDS: dict[str, dict] = {
+    "2160-0":  {"label": "Creatinine", "high": 1.5,  "critical": 2.0,  "direction": "high"},
+    "2823-3":  {"label": "Potassium",  "high": 5.5,  "critical": 6.0,  "direction": "high"},
+    "33914-3": {"label": "eGFR",       "high": 30,   "critical": 15,   "direction": "low"},
+    "4548-4":  {"label": "HbA1c",      "high": 9.0,  "critical": 11.0, "direction": "high"},
+    "3094-0":  {"label": "BUN",        "high": 40,   "critical": 60,   "direction": "high"},
+}
+
+# Critical ICD-10 condition codes
+_CRITICAL_CONDITIONS = {"N18.4", "N18.5", "I50.9", "J44.1"}
+_MODERATE_CONDITIONS = {"E11.9", "N18.3", "I10", "J45.50"}
+
+
+def _score_patient(patient_id: str) -> dict:
+    entries  = PATIENT_BUNDLES.get(patient_id, [])
+    patient  = next((e["resource"] for e in entries if e["resource"]["resourceType"] == "Patient"), {})
+    obs_list = [e["resource"] for e in entries if e["resource"]["resourceType"] == "Observation"]
+    cond_list= [e["resource"] for e in entries if e["resource"]["resourceType"] == "Condition"]
+
+    name_obj  = patient.get("name", [{}])[0]
+    full_name = (name_obj.get("given", [""])[0] + " " + name_obj.get("family", "")).strip()
+    initials  = "".join(p[0].upper() for p in full_name.split() if p)[:2]
+
+    severity  = "green"
+    reasons: list[str] = []
+
+    # Score observations — use the most recent value per LOINC code
+    latest: dict[str, float] = {}
+    for o in obs_list:
+        code = (o.get("code", {}).get("coding") or [{}])[0].get("code", "")
+        val  = (o.get("valueQuantity") or {}).get("value")
+        dt   = o.get("effectiveDateTime", "")
+        if code in _THRESHOLDS and val is not None:
+            if code not in latest:
+                latest[code] = (val, dt)
+            else:
+                if dt > latest[code][1]:
+                    latest[code] = (val, dt)
+
+    for code, (val, _) in latest.items():
+        cfg = _THRESHOLDS[code]
+        if cfg["direction"] == "high":
+            if val >= cfg["critical"]:
+                severity = "red"
+                reasons.append(f"{cfg['label']} critically high ({val})")
+            elif val >= cfg["high"]:
+                if severity != "red":
+                    severity = "orange"
+                reasons.append(f"{cfg['label']} elevated ({val})")
+        else:  # low direction (eGFR)
+            if val <= cfg["critical"]:
+                severity = "red"
+                reasons.append(f"{cfg['label']} critically low ({val})")
+            elif val <= cfg["high"]:
+                if severity != "red":
+                    severity = "orange"
+                reasons.append(f"{cfg['label']} low ({val})")
+
+    # Score conditions
+    for cond in cond_list:
+        for coding in (cond.get("code", {}).get("coding") or []):
+            code = coding.get("code", "")
+            if code in _CRITICAL_CONDITIONS:
+                severity = "red"
+                reasons.append(f"Critical condition: {coding.get('display', code)}")
+            elif code in _MODERATE_CONDITIONS and severity == "green":
+                severity = "orange"
+                reasons.append(f"Chronic condition: {coding.get('display', code)}")
+
+    return {
+        "id":       patient_id,
+        "name":     full_name,
+        "initials": initials,
+        "gender":   patient.get("gender"),
+        "severity": severity,
+        "reasons":  reasons[:3],   # top 3 reasons to show in tooltip
+    }
+
+
 # ── REST endpoints ────────────────────────────────────────────────────────────
 
 @app.get("/api/health")
@@ -112,6 +194,15 @@ def list_patients():
             "num_medications": len(medications),
         })
     return result
+
+
+@app.get("/api/patients/severity")
+def patients_severity():
+    """
+    Return severity (red/orange/green) for all patients.
+    Used by the priority dot bar at the top of the dashboard.
+    """
+    return [_score_patient(pid) for pid in PATIENT_BUNDLES]
 
 
 @app.get("/api/patient/{patient_id}")

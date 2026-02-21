@@ -49,6 +49,177 @@
 .backend-status.disconnected { background: #450a0a; color: #f87171; }
 .backend-status.checking     { background: #422006; color: #fbbf24; }
 
+/* ── active patient badge ── */
+.active-patient-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-left: 1px solid #334155;
+  padding-left: 1rem;
+}
+
+.severity-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.severity-dot.red    { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+.severity-dot.orange { background: #f97316; box-shadow: 0 0 6px #f97316; }
+.severity-dot.green  { background: #22c55e; }
+
+/* ── patient dots bar ── */
+.patient-dots-bar {
+  background: #0a1628;
+  border-bottom: 1px solid #1e293b;
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.dots-legend {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  border-right: 1px solid #1e293b;
+  padding-right: 1.5rem;
+}
+
+.legend-item { color: #94a3b8; }
+.legend-item.red    { color: #ef4444; }
+.legend-item.orange { color: #f97316; }
+.legend-item.green  { color: #22c55e; }
+
+.dots-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.dot-wrapper {
+  position: relative;
+}
+
+.dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, box-shadow 0.15s;
+  outline: none;
+}
+
+.dot:hover {
+  transform: scale(1.2);
+  z-index: 10;
+}
+
+.dot.active {
+  transform: scale(1.25);
+  z-index: 10;
+}
+
+/* tooltip */
+.dot-tooltip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  min-width: 180px;
+  z-index: 100;
+  font-size: 0.75rem;
+  color: #e2e8f0;
+  white-space: nowrap;
+}
+
+.dot-wrapper:hover .dot-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dot-tooltip strong { font-size: 0.8rem; color: #f1f5f9; }
+.dot-tooltip em { font-size: 0.7rem; color: #64748b; margin-top: 0.2rem; }
+.dot-tooltip ul { margin: 0.2rem 0 0; padding-left: 1rem; }
+.dot-tooltip ul li { font-size: 0.7rem; color: #94a3b8; }
+
+.tooltip-severity {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+.tooltip-severity.red    { background: #450a0a; color: #f87171; }
+.tooltip-severity.orange { background: #431407; color: #fb923c; }
+.tooltip-severity.green  { background: #052e16; color: #4ade80; }
+
+/* ── legend bar ── */
+.legend-bar {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.3rem 1rem;
+  background: #080f1e;
+  border-bottom: 1px solid #1e293b;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.legend-bar-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.legend-item-node {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+
+.legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,0.15);
+}
+.legend-swatch.patient    { background: #1d4ed8; }
+.legend-swatch.condition  { background: #ea580c; border-radius: 3px; }
+.legend-swatch.obs-normal { background: #16a34a; }
+.legend-swatch.obs-alert  { background: #dc2626; }
+.legend-swatch.medication { background: #7c3aed; border-radius: 3px; width: 14px; height: 14px; transform: rotate(45deg); }
+.legend-swatch.encounter  { background: #6b7280; border-radius: 3px; }
+
+.legend-divider {
+  width: 1px;
+  height: 16px;
+  background: #1e293b;
+  flex-shrink: 0;
+}
+
 /* ── main layout ── */
 .main {
   display: flex;
@@ -100,6 +271,41 @@
   color: #94a3b8;
   line-height: 1.4;
   border-left: 3px solid #1e293b;
+}
+
+/* ── legend ── */
+.legend {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid #1e293b;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.legend-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #475569;
+  width: 100%;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border-radius: 2px;
 }
 
 .event-log li.alert {

@@ -14,17 +14,23 @@ import 'reactflow/dist/style.css'
 import './App.css'
 import { fhirToGraph, simObsToNode } from './fhirToNodes'
 import type { FhirBundle, FhirObservation } from './types'
+import PatientDots, { type PatientSeverity } from './PatientDots'
+import Legend from './Legend'
 
-const API  = 'http://localhost:8000'
-const WS   = 'ws://localhost:8000'
-const PID  = 'synth-001'
+const API = 'http://localhost:8000'
+const WS  = 'ws://localhost:8000'
+const DEFAULT_PID = 'synth-001'
 
 export default function App() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node[]>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([])
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking')
   const [eventLog, setEventLog] = useState<string[]>([])
+  const [activePid, setActivePid] = useState(DEFAULT_PID)
+  const [severityList, setSeverityList] = useState<PatientSeverity[]>([])
+  const [activePatientName, setActivePatientName] = useState('James Morrison')
   const existingNodeIds = useRef<Set<string>>(new Set())
+  const wsRef = useRef<WebSocket | null>(null)
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -42,26 +48,57 @@ export default function App() {
       .catch(() => setBackendStatus('disconnected'))
   }, [])
 
-  // ── load FHIR data ────────────────────────────────────────────────────────
+  // ── load severity list (once, on connect) ────────────────────────────────
   useEffect(() => {
     if (backendStatus !== 'connected') return
-    log(`Loading patient ${PID}…`)
-    fetch(`${API}/api/patient/${PID}/fhir`)
+    fetch(`${API}/api/patients/severity`)
+      .then((r) => r.json())
+      .then((data: PatientSeverity[]) => setSeverityList(data))
+      .catch(() => log('Could not load severity list'))
+  }, [backendStatus])
+
+  // ── load FHIR data for active patient ────────────────────────────────────
+  useEffect(() => {
+    if (backendStatus !== 'connected') return
+
+    // Reset canvas
+    setNodes([])
+    setEdges([])
+    existingNodeIds.current = new Set()
+
+    const name = severityList.find((p) => p.id === activePid)?.name ?? activePid
+    setActivePatientName(name)
+    log(`Loading patient ${name} (${activePid})…`)
+
+    fetch(`${API}/api/patient/${activePid}/fhir`)
       .then((r) => r.json())
       .then((bundle: FhirBundle) => {
         const { nodes: n, edges: e } = fhirToGraph(bundle)
         n.forEach((node) => existingNodeIds.current.add(node.id))
         setNodes(n)
         setEdges(e)
-        log(`Loaded ${bundle.conditions.length} conditions, ${bundle.observations.length} observations, ${bundle.medications.length} medications, ${bundle.encounters.length} encounters`)
+        log(
+          `Loaded ${bundle.conditions.length} conditions, ` +
+          `${bundle.observations.length} obs, ` +
+          `${bundle.medications.length} meds, ` +
+          `${bundle.encounters.length} encounters`,
+        )
       })
       .catch((err) => log(`Error loading FHIR: ${err}`))
-  }, [backendStatus])
+  }, [backendStatus, activePid])
 
-  // ── WebSocket simulation ──────────────────────────────────────────────────
+  // ── WebSocket simulation — reconnects when patient changes ───────────────
   useEffect(() => {
     if (backendStatus !== 'connected') return
-    const ws = new WebSocket(`${WS}/ws/simulate/${PID}`)
+
+    // Close previous socket
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
+    }
+
+    const ws = new WebSocket(`${WS}/ws/simulate/${activePid}`)
+    wsRef.current = ws
 
     ws.onopen = () => log('Simulation started — new creatinine every 15 s')
 
@@ -82,7 +119,7 @@ export default function App() {
           ...prev,
           {
             id: `e-patient-${newNode.id}`,
-            source: `patient-${PID}`,
+            source: `patient-${activePid}`,
             target: newNode.id,
             animated: true,
             style: { stroke: '#fbbf24', strokeWidth: 2 },
@@ -91,23 +128,39 @@ export default function App() {
       }
     }
 
-    ws.onerror = () => log('WebSocket error — is backend running?')
+    ws.onerror = () => log('WebSocket error')
     ws.onclose = () => log('Simulation stream closed')
 
     return () => ws.close()
-  }, [backendStatus])
+  }, [backendStatus, activePid])
+
+  const activeSeverity = severityList.find((p) => p.id === activePid)
 
   return (
     <div className="app">
       <header className="header">
         <div className="header-left">
           <h1>FHIRBrush</h1>
-          <span className="patient-label">Patient: James Morrison — DM2 + CKD</span>
+          <div className="active-patient-badge">
+            {activeSeverity && (
+              <span className={`severity-dot ${activeSeverity.severity}`} />
+            )}
+            <span className="patient-label">{activePatientName}</span>
+          </div>
         </div>
         <div className="header-right">
           <span className={`backend-status ${backendStatus}`}>Backend: {backendStatus}</span>
         </div>
       </header>
+
+      {/* Priority dot bar */}
+      {severityList.length > 0 && (
+        <PatientDots
+          patients={severityList}
+          activeId={activePid}
+          onSelect={setActivePid}
+        />
+      )}
 
       <div className="main">
         <div className="flow-container">
@@ -123,15 +176,13 @@ export default function App() {
             <Background />
             <Controls />
             <MiniMap
-              nodeColor={(n) => {
-                const bg = (n.style?.background as string) ?? '#ccc'
-                return bg
-              }}
+              nodeColor={(n) => (n.style?.background as string) ?? '#ccc'}
             />
           </ReactFlow>
         </div>
 
         <aside className="sidebar">
+          <Legend />
           <h2>FHIR Event Log</h2>
           <ul className="event-log">
             {eventLog.map((entry, i) => (
