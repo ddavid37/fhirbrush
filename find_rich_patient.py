@@ -8,7 +8,7 @@ then prints a ranked summary so you can pick the best patient ID.
 import requests
 
 BASE = "https://hapi.fhir.org/baseR4"
-PATIENT_COUNT = 20
+PATIENT_COUNT = 20 # Max is 500
 
 
 def get_bundle_total(url: str) -> int:
