@@ -77,3 +77,6 @@ If you hit 3:30 and Claude integration is still broken, hardcode a beautiful, re
 [FHIRBrush v2 — React Flow canvas with FHIR nodes - menu to handle and jump between 20 patients simultaneously](version2.png)
 
 
+# Video Presentation
+
+https://youtu.be/yQ0zFj2tk3Q
