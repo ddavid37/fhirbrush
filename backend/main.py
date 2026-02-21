@@ -5,6 +5,7 @@ creatinine observations over WebSocket every 15 seconds.
 """
 
 import asyncio
+import hashlib
 import json
 import random
 import uuid
@@ -12,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import redis as redis_lib
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -26,6 +28,51 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── Redis cache (optional — degrades gracefully if Redis not running) ─────────
+
+CACHE_TTL = 300   # seconds — Claude responses cached for 5 minutes
+
+try:
+    _redis = redis_lib.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+    _redis.ping()
+    REDIS_AVAILABLE = True
+    print("✅ Redis connected — Claude responses will be cached")
+except Exception:
+    _redis = None
+    REDIS_AVAILABLE = False
+    print("⚠️  Redis not available — running without cache (demo still works)")
+
+
+def cache_get(key: str) -> dict | None:
+    """Return cached value or None."""
+    if not REDIS_AVAILABLE:
+        return None
+    try:
+        raw = _redis.get(key)
+        return json.loads(raw) if raw else None
+    except Exception:
+        return None
+
+
+def cache_set(key: str, value: dict) -> None:
+    """Store value in Redis with TTL."""
+    if not REDIS_AVAILABLE:
+        return
+    try:
+        _redis.setex(key, CACHE_TTL, json.dumps(value))
+    except Exception:
+        pass
+
+
+def cache_key(patient_id: str, payload: dict) -> str:
+    """
+    Deterministic cache key: hash of patient_id + sorted FHIR snapshot.
+    Same clinical state = same key = same cached Claude response.
+    """
+    raw = json.dumps({"pid": patient_id, "payload": payload}, sort_keys=True)
+    return "fhirbrush:claude:" + hashlib.sha256(raw.encode()).hexdigest()[:16]
+
 
 # ── load patient data once at startup ────────────────────────────────────────
 
@@ -231,6 +278,67 @@ def get_patient_fhir(patient_id: str):
         "medications":      _resources_of(patient_id, "MedicationRequest"),
         "encounters":       _resources_of(patient_id, "Encounter"),
     }
+
+
+# ── Claude analysis endpoint (Phase 3 — cache wired in) ──────────────────────
+
+# Hardcoded fallback so demo never breaks even without Claude API key
+FALLBACK_CLAUDE_RESPONSE = {
+    "highlight_nodes": ["obs-creatinine", "condition-ckd"],
+    "draw_edges": [
+        {"from": "obs-creatinine", "to": "condition-ckd", "label": "worsening marker"}
+    ],
+    "risk_cluster": ["obs-creatinine", "obs-potassium", "condition-ckd"],
+    "risk_level": "high",
+    "narrative": "Rising creatinine with hyperkalemia suggests acute-on-chronic kidney injury — immediate nephrology review indicated.",
+    "_source": "fallback",
+}
+
+
+@app.post("/api/claude/analyze")
+async def claude_analyze(body: dict):
+    """
+    Receive a FHIR snapshot, call Claude, return structured canvas instructions.
+    Redis caches identical snapshots for 5 minutes to avoid redundant API calls.
+    Phase 3: replace the fallback block below with the real Anthropic API call.
+    """
+    patient_id = body.get("patient_id", "unknown")
+    payload    = body.get("fhir_snapshot", {})
+    key        = cache_key(patient_id, payload)
+
+    # 1. Check cache first
+    cached = cache_get(key)
+    if cached:
+        cached["_source"] = "cache"
+        return cached
+
+    # 2. TODO (Phase 3): call Claude here
+    #    response = await call_claude(payload)
+    #    result = parse_claude_response(response)
+
+    # 3. Fallback until Claude is wired
+    result = {**FALLBACK_CLAUDE_RESPONSE, "_source": "fallback"}
+
+    # 4. Cache the result
+    cache_set(key, result)
+
+    return result
+
+
+@app.get("/api/cache/status")
+def cache_status():
+    """Quick endpoint to confirm Redis is live — visible in the event log."""
+    if not REDIS_AVAILABLE:
+        return {"redis": "unavailable", "note": "running without cache"}
+    try:
+        info = _redis.info("server")
+        return {
+            "redis": "connected",
+            "version": info.get("redis_version"),
+            "uptime_seconds": info.get("uptime_in_seconds"),
+        }
+    except Exception as e:
+        return {"redis": "error", "detail": str(e)}
 
 
 # ── WebSocket simulation ──────────────────────────────────────────────────────
