@@ -108,11 +108,11 @@ Every field maps to a visual mutation on the canvas: nodes pulse, edges animate,
 
 # Version 1
 
-[FHIRBrush v1 — React Flow canvas with FHIR nodes](version1.png)
+![FHIRBrush v1 — React Flow canvas with FHIR nodes](version1.png)
 
 # Version 2
 
-[FHIRBrush v2 — React Flow canvas with FHIR nodes - menu to handle and jump between 20 patients simultaneously](version2.png)
+![FHIRBrush v2 — React Flow canvas with FHIR nodes - menu to handle and jump between 20 patients simultaneously](version2.png)
 
 
 ## Demo Script (3 minutes)
@@ -123,8 +123,6 @@ Every field maps to a visual mutation on the canvas: nodes pulse, edges animate,
 4. **(2:30 – 3:00)** Land the line above.
 
 
-# Demo Video
+# Video Presentation
 
 https://youtu.be/yQ0zFj2tk3Q
-
-
