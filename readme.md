@@ -2,70 +2,108 @@
 
 ![FHIRBrush v1 — React Flow canvas with FHIR nodes](version1.png)
 
-## Phase 1: Rapid Alignment (12:08 → 12:45) — *Together, 37 minutes*
+# FHIRBrush — Project Description
 
-You've already done a lot of the conceptual alignment in this conversation, so this phase is short. The one thing you genuinely need Meera for right now, before you touch code, is to lock in the clinical scenario and get the exact LOINC codes from her. Ask her specifically: what 4-5 lab values tell the most dramatic story for a diabetic kidney disease patient? She should give you the LOINC codes (creatinine is `2160-0`, potassium is `2823-3` — she'll know the rest), the normal ranges, and the threshold values where Claude should "react" visually. Write these down. They go directly into the system prompt and the simulation script.
+## Overview
 
-While she's doing that, you spend this phase spinning up the repo, initializing the React app with React Flow, and setting up your FastAPI or Express backend. By 12:45 you should have a repo with a running frontend and backend that talk to each other, even if they do nothing interesting yet.
+**FHIRBrush** is a living clinical intelligence canvas that transforms static patient health records into a dynamic, reasoning-driven graph — where artificial intelligence doesn't just answer questions, it *paints the screen*.
 
-### Run Phase 1 (your part)
+Traditional healthcare dashboards are passive: they show you data and wait. FHIRBrush inverts this entirely. The moment a new lab result arrives from the FHIR stream, Claude analyzes the full patient context — conditions, medications, history, trending values — and responds by **reorganizing the canvas itself**: highlighting nodes that matter, drawing causal edges between a rising creatinine and a deteriorating kidney condition, clustering risk factors into a pulsing danger zone, and generating a single physician-grade sentence of clinical reasoning. The interface is not a window into Claude's output. The interface *is* Claude's output.
 
-**Backend (FastAPI)** — in one terminal:
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+---
+
+## How It Shatters UI Conventions
+
+Standard AI interfaces present a chat window. You type, it responds in text. FHIRBrush eliminates the chat box entirely. There is no prompt. There is no text field. The user's only interaction is watching a real-time FHIR event stream — simulated lab observations arriving every 15 seconds — and witnessing the canvas reorganize itself as Claude reasons. The graph is the conversation. The node positions, edge animations, color transitions from green to red, and risk cluster pulses are the language Claude speaks back to the clinician. This is what "the screen knowing what it should look like now that the AI is powerful" actually means in practice.
+
+The 20-patient priority dot bar at the top further breaks convention: instead of a list or a table, clinical urgency is expressed as a spatial, color-coded organism — red patients cluster to the left, green to the right. A single click drills into any patient's full canvas. The UI does the triage before the clinician even reads a word.
+
+---
+
+## Stability of the Working Prototype
+
+The prototype is stable across all five phases of the build:
+
+- **Data layer** — 20 fully-formed synthetic FHIR R4 patient bundles are generated deterministically from `generate_patients.py` and served entirely from local JSON — no external API dependency during the demo, zero network risk.
+- **Backend** — FastAPI with async WebSocket support streams new observations every 15 seconds. All endpoints (`/api/patients/severity`, `/api/patient/{id}/fhir`, `/ws/simulate/{id}`) are live and returning correctly shaped responses.
+- **Frontend** — React Flow canvas populates from FHIR data with color-coded node types (Patient, Condition, Observation, Medication, Encounter), real-time severity thresholding (creatinine > 1.5 mg/dL → red, eGFR < 30 → red), animated edges, a live event log, and a node-type legend.
+- **Fallback guarantee** — If Claude's API is unavailable, a hardcoded realistic JSON response fires automatically — the demo never breaks.
+- **Patient switching** — Clicking any priority dot instantly switches the canvas, resets the WebSocket, and reloads FHIR data for the selected patient — no page reload, no state leak.
+
+---
+
+## How Claude Drives the Interface
+
+Claude does not generate prose. It generates **canvas instructions** — a structured JSON payload that the frontend executes directly:
+
+```json
+{
+  "highlight_nodes": ["obs-creatinine", "condition-ckd"],
+  "draw_edges": [
+    { "from": "obs-creatinine", "to": "condition-ckd", "label": "worsening marker" }
+  ],
+  "risk_cluster": ["obs-creatinine", "obs-potassium", "condition-ckd"],
+  "risk_level": "high",
+  "narrative": "Rising creatinine with hyperkalemia suggests acute-on-chronic kidney injury — immediate nephrology review indicated."
+}
 ```
 
-**Frontend (React + React Flow)** — in another terminal:
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open http://localhost:5173. The header should show **Backend: connected** when the API is reachable. You’ll see a minimal React Flow canvas (two placeholder nodes). That’s the Phase 1 target.
+Every field maps to a visual mutation on the canvas: nodes pulse, edges animate, risk clusters glow, and the narrative sidebar updates with one sentence that sounds like a physician wrote it. Claude's reasoning is the choreographer; the graph is the performance.
 
 ---
 
-## Phase 2: Data Pipeline (12:45 → 2:15) — *Parallel, 90 minutes*
+## Technologies, Frameworks & Libraries
 
-This is your most important phase and you're doing it mostly solo while Meera writes the Claude prompt.
+### Frontend
 
-Your goal is ruthlessly simple: get real FHIR data from the HAPI server appearing as nodes on the React Flow canvas. Don't worry about Claude yet. Don't worry about beauty yet. Just get the data flowing. Fetch the patient's Conditions, Observations, and MedicationRequests in parallel, map each resource type to a node type, and render them on screen. Then get the WebSocket simulation loop running so a new creatinine Observation appears every 15 seconds and a new node or updated node shows up on the canvas. When that loop is visible and working, you have the heartbeat of the entire project.
+| Tool | Role |
+|------|------|
+| **React 19** | Component framework |
+| **React Flow 11** | Interactive node-graph canvas — the core visual primitive |
+| **TypeScript** | Type safety across all FHIR resource shapes |
+| **Vite 7** | Fast dev server and bundler |
+| **WebSocket (native browser API)** | Real-time FHIR observation stream |
+| **CSS custom properties** | Dark clinical UI with severity color system |
 
-Meera in parallel is writing the Claude system prompt in a simple text file or Notion doc. Her prompt should explain to Claude what each FHIR resource type means clinically, include the normal ranges she gave you, and specify the exact JSON output shape you need — highlight which nodes, draw which relationships, and generate one narrative sentence. This is genuinely her most valuable contribution to the build and it will take her the full 90 minutes to do it well.
+### Backend
+
+| Tool | Role |
+|------|------|
+| **FastAPI** | REST API + WebSocket server |
+| **Uvicorn** | ASGI async server |
+| **Python asyncio** | Async WebSocket simulation loop |
+| **`websockets` library** | WebSocket protocol support |
+| **JSON (stdlib)** | FHIR R4 bundle storage and serving |
+
+### Data & Clinical Standards
+
+| Tool | Role |
+|------|------|
+| **FHIR R4** | Healthcare interoperability standard — all patient data is valid FHIR R4 JSON, the same format used by every major US hospital system |
+| **LOINC codes** | Creatinine (`2160-0`), Potassium (`2823-3`), eGFR (`33914-3`), HbA1c (`4548-4`), BUN (`3094-0`) |
+| **ICD-10-CM codes** | Condition classification (E11.9, N18.3, I10, E78.5, E11.40, N18.4, I50.9, J44.1) |
+| **SNOMED CT** | Supplementary condition coding |
+| **Synthea-style synthetic data** | Clinically coherent patient generation via `generate_patients.py` — 20 patients, 5 clinical scenarios |
+
+### AI
+
+| Tool | Role |
+|------|------|
+| **Anthropic Claude 3.5 Sonnet** | Clinical reasoning engine — returns structured JSON that drives canvas mutations: node highlights, edge draws, risk clusters, narrative |
+
+### Infrastructure
+
+| Tool | Role |
+|------|------|
+| **Git + GitHub** | Version control with feature branch workflow |
+| **Python 3.12** | Backend runtime |
+| **Node.js 25 / npm** | Frontend runtime and package management |
 
 ---
 
-## Phase 3: Claude Integration (2:15 → 3:45) — *Together first, then split, 90 minutes*
+## The One-Line Demo Thesis
 
-Spend the first 30 minutes together getting Claude wired in. Take Meera's system prompt, send a single hardcoded FHIR payload to Claude, and look at what comes back. It will probably need iteration — Claude might return poorly structured JSON or clinically vague reasoning. Meera fixes the prompt while you fix the parsing. This tight loop between clinical accuracy and technical structure is where your collaboration is most powerful.
-
-Once Claude is returning sensible structured output, you split. You spend the next 60 minutes wiring Claude's JSON response to the canvas — animating node highlights, drawing relationship edges, updating the narrative sidebar. Meera continues prompt-tuning by watching the live Claude outputs and adjusting the clinical language and thresholds until the reasoning sounds like something a real physician would say.
-
-By 3:45 you want the full loop working at least once, even if it's fragile: FHIR loads → canvas populates → simulated observation arrives → Claude reasons → canvas reacts. That's your demo-able prototype.
-
----
-
-## Phase 4: Visual Polish + Demo Engineering (3:45 → 5:30) — *Parallel, 105 minutes*
-
-You focus entirely on making the canvas look stunning. Color coding by node type, smooth edge animations, a live FHIR event log strip showing raw resource types streaming in, risk clusters that pulse when Claude flags them. This is where the project goes from "impressive technically" to "impressive to everyone in the room." Prioritize the visual drama of the cascade moment — lab value arrives, canvas reorganizes, narrative updates — over any other feature.
-
-Meera writes the spoken demo script. Literally a 3-minute narrative she or you deliver while the canvas runs. The script should tell the clinical story first ("this patient has diabetes and we're watching their kidneys under pressure in real time"), then explain what the canvas is showing as it happens, then land on the line that wins the room: "this is the same FHIR R4 format used by every major hospital system in the US — FHIRBrush could plug into a real EHR with zero changes to the data layer."
-
----
-
-## Phase 5: Submission Buffer (5:30 → 6:00) — *Together, 30 minutes*
-
-Full demo run-through once. Fix only things that are broken enough to kill the demo. Submit with 5 minutes to spare. Do not start new features here.
-
----
-
-## The Triage Rule
-
-If you hit 3:30 and Claude integration is still broken, hardcode a beautiful, realistic Claude response and move on. A visually stunning canvas with a scripted response is a better demo than a technically correct but ugly live pipeline. You can be transparent about this in the submission write-up — judges respect honest scoping.
-
+> The same FHIR R4 format used by every major hospital system in the US means FHIRBrush could plug into a real EHR with zero changes to the data layer — Claude's reasoning is the only new ingredient, and the graph is how it speaks.
 
 
 # Version 1
@@ -75,5 +113,18 @@ If you hit 3:30 and Claude integration is still broken, hardcode a beautiful, re
 # Version 2
 
 [FHIRBrush v2 — React Flow canvas with FHIR nodes - menu to handle and jump between 20 patients simultaneously](version2.png)
+
+
+## Demo Script (3 minutes)
+
+1. **(0:00 – 0:30)** "This patient has Type 2 Diabetes and we are watching their kidneys under pressure in real time."
+2. **(0:30 – 1:30)** Walk the canvas: Patient node at center, Conditions on the left, lab Observations on the right, Medications below. The dot bar shows 20 patients — red ones are the most critical, already sorted to the left.
+3. **(1:30 – 2:30)** "Watch what happens when a new creatinine result comes in." New node appears → canvas reorganizes → narrative updates → edges animate.
+4. **(2:30 – 3:00)** Land the line above.
+
+
+# Demo Video
+
+https://youtu.be/yQ0zFj2tk3Q
 
 
