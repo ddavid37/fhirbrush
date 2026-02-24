@@ -23,8 +23,8 @@ app = FastAPI(title="FHIRBrush API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -341,13 +341,51 @@ def cache_status():
         return {"redis": "error", "detail": str(e)}
 
 
-# ── WebSocket simulation ──────────────────────────────────────────────────────
+# ── Polling simulation endpoint (replaces WebSocket for serverless deploys) ───
+
+@app.get("/api/simulate/{patient_id}/next")
+def simulate_next(patient_id: str, step: int = 0):
+    """
+    Stateless polling alternative to the WebSocket simulation.
+    The client passes the current step counter so this works on serverless.
+    """
+    if patient_id not in PATIENT_BUNDLES:
+        raise HTTPException(status_code=404, detail=f"Patient {patient_id} not found")
+
+    creat = CREATININE_SIM[min(step, len(CREATININE_SIM) - 1)]
+    potassium = POTASSIUM_SIM[min(step, len(POTASSIUM_SIM) - 1)]
+    creat += random.uniform(-0.05, 0.05)
+    potassium += random.uniform(-0.05, 0.05)
+
+    return {
+        "type": "new_observation",
+        "data": {
+            "resourceType": "Observation",
+            "id": f"sim-creat-{uuid.uuid4().hex[:8]}",
+            "status": "final",
+            "category": [{"coding": [{"system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                                       "code": "laboratory"}]}],
+            "code": {"coding": [{"system": "http://loinc.org", "code": "2160-0",
+                                  "display": "Creatinine [Mass/volume] in Serum"}],
+                     "text": "Creatinine"},
+            "subject": {"reference": f"Patient/{patient_id}"},
+            "effectiveDateTime": _now_iso(),
+            "valueQuantity": {"value": round(creat, 2), "unit": "mg/dL",
+                              "system": "http://unitsofmeasure.org", "code": "mg/dL"},
+            "_simulated": True,
+            "_potassium": round(potassium, 2),
+            "_step": step,
+        },
+    }
+
+
+# ── WebSocket simulation (local dev only — not supported on Vercel) ───────────
 
 @app.websocket("/ws/simulate/{patient_id}")
 async def simulate(websocket: WebSocket, patient_id: str):
     """
     Stream a new creatinine Observation every 15 seconds.
-    The frontend adds it as a new node and sends it to Claude.
+    Use /api/simulate/{patient_id}/next for serverless deploys.
     """
     if patient_id not in PATIENT_BUNDLES:
         await websocket.close(code=1008)

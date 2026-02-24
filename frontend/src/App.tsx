@@ -17,8 +17,9 @@ import type { FhirBundle, FhirObservation } from './types'
 import PatientDots, { type PatientSeverity } from './PatientDots'
 import Legend from './Legend'
 
-const API = 'http://localhost:8000'
-const WS  = 'ws://localhost:8000'
+// In dev, set VITE_API_URL=http://localhost:8000 in frontend/.env.development
+// In production (Vercel) leave it unset — relative URLs work since frontend and API share the same domain
+const API = (import.meta.env.VITE_API_URL as string) ?? ''
 const DEFAULT_PID = 'synth-001'
 
 export default function App() {
@@ -30,7 +31,7 @@ export default function App() {
   const [severityList, setSeverityList] = useState<PatientSeverity[]>([])
   const [activePatientName, setActivePatientName] = useState('James Morrison')
   const existingNodeIds = useRef<Set<string>>(new Set())
-  const wsRef = useRef<WebSocket | null>(null)
+  const simStepRef = useRef<number>(0)
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -87,25 +88,16 @@ export default function App() {
       .catch((err) => log(`Error loading FHIR: ${err}`))
   }, [backendStatus, activePid])
 
-  // ── WebSocket simulation — reconnects when patient changes ───────────────
+  // ── Polling simulation — polls every 15 s, works on both local and Vercel ──
   useEffect(() => {
     if (backendStatus !== 'connected') return
 
-    // Close previous socket
-    if (wsRef.current) {
-      wsRef.current.close()
-      wsRef.current = null
-    }
+    simStepRef.current = 0
+    log('Simulation started — new creatinine every 15 s')
 
-    const ws = new WebSocket(`${WS}/ws/simulate/${activePid}`)
-    wsRef.current = ws
-
-    ws.onopen = () => log('Simulation started — new creatinine every 15 s')
-
-    ws.onmessage = (evt) => {
-      const msg = JSON.parse(evt.data)
+    const handleObservation = (msg: { type: string; data: FhirObservation }) => {
       if (msg.type !== 'new_observation') return
-      const obs: FhirObservation = msg.data
+      const obs = msg.data
       const val = obs.valueQuantity?.value ?? '?'
       const unit = obs.valueQuantity?.unit ?? ''
       const abnormal = typeof val === 'number' && val > 1.5
@@ -128,10 +120,19 @@ export default function App() {
       }
     }
 
-    ws.onerror = () => log('WebSocket error')
-    ws.onclose = () => log('Simulation stream closed')
+    const poll = () => {
+      const step = simStepRef.current
+      fetch(`${API}/api/simulate/${activePid}/next?step=${step}`)
+        .then((r) => r.json())
+        .then((msg) => {
+          simStepRef.current = step + 1
+          handleObservation(msg)
+        })
+        .catch(() => log('Simulation poll error'))
+    }
 
-    return () => ws.close()
+    const intervalId = setInterval(poll, 15000)
+    return () => clearInterval(intervalId)
   }, [backendStatus, activePid])
 
   const activeSeverity = severityList.find((p) => p.id === activePid)
