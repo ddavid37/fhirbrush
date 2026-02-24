@@ -110,8 +110,7 @@ export function fhirToGraph(
     const nid = `obs-${o.id}`
     if (existingNodeIds.has(nid)) return
     const abnormal = isAbnormal(o)
-    const code = loincCode(o)
-    const label = o.code?.text ?? o.code?.coding?.[0]?.display ?? 'Observation'
+    const label = o.code?.text ?? o.code?.coding?.[0]?.display ?? loincCode(o) ?? 'Observation'
     const val = o.valueQuantity ? `${o.valueQuantity.value} ${o.valueQuantity.unit}` : ''
     const col = 1000 + Math.floor(i / 6) * 220
     const row = (i % 6) * 100 + 80
